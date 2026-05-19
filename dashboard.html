@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- AUTH GUARD — keep at the very top of <head> -->
+<style id="auth-guard-hide">html { visibility: hidden; }</style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="login/auth-config.js"></script>
+<script src="login/auth.js"></script>
+<script src="login/data.js"></script>
+<script src="login/api.js"></script>
+<script>window.Auth.guardPage({ redirectTo: 'login/index.html' });</script>
+<!-- END AUTH GUARD -->
+
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Anant Avinya Technologies – Work Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --green:        #7CB342;
+  --green-dark:   #558B2F;
+  --green-bright: #9CCC65;
+  --blue:         #2196F3;
+  --blue-dark:    #1565C0;
+  --blue-deep:    #0D47A1;
+  --red:          #CC2229;
+  --red-soft:     #E53935;
+  --orange:       #F57C00;
+  --amber:        #FFC107;
+  --purple:       #7B1FA2;
+  --ink:          #1a1d24;
+  --ink-mid:      #102a3d;
+  --paper:        #f0f4f8;
+  --white:        #ffffff;
+  --shadow:       0 2px 12px rgba(0,0,0,.08);
+  --shadow-up:    0 8px 28px rgba(0,0,0,.13);
+  --radius:       12px;
+  --radius-sm:    8px;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+/* ───────────────────────────────────────────────
+   LOADING OVERLAY
+─────────────────────────────────────────────── */
+#loadingOverlay {
+  position: fixed; inset: 0;
+  background: rgba(240,244,248,.92);
+  z-index: 600;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 18px;
+}
+.ld-spinner {
+  width: 46px; height: 46px; border-radius: 50%;
+  border: 4px solid rgba(124,179,66,.22);
+  border-top-color: var(--green);
+  animation: spin .85s linear infinite;
+}
+.ld-text { font-size: 14px; color: #777; font-weight: 600; letter-spacing:.04em; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ───────────────────────────────────────────────
+   HEADER
+─────────────────────────────────────────────── */
+.dash-header {
+  position: sticky; top: 0; z-index: 200;
+  background: linear-gradient(95deg, #0a1622 0%, var(--ink-mid) 40%, var(--blue-deep) 100%);
+  box-shadow: 0 4px 20px rgba(0,0,0,.38);
+}
+.header-inner {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 0 28px; height: 70px;
+}
+.header-left { display: flex; align-items: center; gap: 18px; }
+.header-logo { height: 50px; width: auto; object-fit: contain; display: block; }
+.header-titles { color: #fff; }
+.header-company {
+  font-size: 17px; font-weight: 800;
+  letter-spacing: -.01em; line-height: 1.1; color: #fff;
+}
+.header-sub {
+  font-size: 10px; font-weight: 700; letter-spacing: .22em;
+  color: var(--red-soft); text-transform: uppercase; margin-top: 3px;
+}
+.header-right { display: flex; align-items: center; gap: 14px; }
+.header-altus { height: 46px; width: auto; object-fit: contain; display: block; }
+.header-live {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; color: rgba(255,255,255,.65); font-weight: 600;
+}
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #28c840;
+  box-shadow: 0 0 0 0 rgba(40,200,64,.6);
+  animation: livePulse 2.2s infinite;
+}
+@keyframes livePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(40,200,64,.6); }
+  70%  { box-shadow: 0 0 0 7px rgba(40,200,64,0); }
+  100% { box-shadow: 0 0 0 0 rgba(40,200,64,0); }
+}
+.header-underline {
+  height: 3px;
+  background: linear-gradient(90deg, var(--red) 0%, rgba(204,34,41,0) 70%);
+  box-shadow: 0 0 14px 2px rgba(204,34,41,.55);
+}
+
+/* ───────────────────────────────────────────────
+   NAV BAR
+─────────────────────────────────────────────── */
+.nav-bar {
+  background: var(--ink);
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 20px;
+  overflow-x: auto; scrollbar-width: none;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.nav-bar::-webkit-scrollbar { display: none; }
+.nav-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.82); border-radius: 20px;
+  padding: 6px 15px; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  text-decoration: none; flex-shrink: 0;
+  transition: background .17s, border-color .17s, color .17s;
+}
+.nav-pill:hover {
+  background: rgba(255,255,255,.16); color: #fff;
+  border-color: rgba(255,255,255,.26);
+}
+.nav-pill.back-btn {
+  background: rgba(124,179,66,.16);
+  border-color: rgba(124,179,66,.38);
+  color: var(--green-bright);
+}
+.nav-pill.back-btn:hover {
+  background: rgba(124,179,66,.3);
+  border-color: var(--green);
+}
+.nav-pill.sheet-btn {
+  background: rgba(33,150,243,.14);
+  border-color: rgba(33,150,243,.34);
+  color: #90CAF9;
+}
+.nav-pill.sheet-btn:hover {
+  background: rgba(33,150,243,.26); border-color: var(--blue);
+}
+.nav-sep {
+  width: 1px; height: 20px;
+  background: rgba(255,255,255,.11); flex-shrink: 0;
+}
+.nav-pill.signout {
+  margin-left: auto;
+  background: rgba(229,57,53,.16);
+  border-color: rgba(229,57,53,.42);
+  color: #ffbcbf;
+}
+.nav-pill.signout:hover {
+  background: linear-gradient(120deg, var(--red), var(--red-soft));
+  border-color: var(--red-soft);
+  color: #ffffff;
+}
+
+/* ───────────────────────────────────────────────
+   FILTER BAR
+─────────────────────────────────────────────── */
+.filter-bar {
+  background: var(--white);
+  border-bottom: 1px solid rgba(0,0,0,.08);
+  padding: 13px 28px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.filter-label {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .14em;
+  color: #9a9a9a; text-transform: uppercase; white-space: nowrap;
+}
+.filter-input {
+  border: 1.5px solid rgba(0,0,0,.12); border-radius: var(--radius-sm);
+  padding: 8px 12px; font-size: 13px; color: var(--ink);
+  font-family: inherit; outline: none; background: #fff;
+  transition: border-color .18s, box-shadow .18s;
+}
+.filter-input:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(124,179,66,.12);
+}
+.filter-arrow { color: #c0c0c0; font-size: 13px; }
+
+/* Multiselect */
+.ms-wrap { position: relative; }
+.ms-trigger {
+  border: 1.5px solid rgba(0,0,0,.12); border-radius: var(--radius-sm);
+  padding: 8px 32px 8px 12px; font-size: 13px; color: var(--ink);
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%23888' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center;
+  cursor: pointer; min-width: 155px; white-space: nowrap;
+  font-family: inherit; outline: none;
+  transition: border-color .18s;
+}
+.ms-trigger:hover, .ms-trigger.open { border-color: var(--green); }
+.ms-dropdown {
+  position: absolute; top: calc(100% + 5px); left: 0;
+  background: #fff; border: 1.5px solid rgba(0,0,0,.12);
+  border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.14);
+  min-width: 200px; max-height: 230px; overflow-y: auto;
+  z-index: 300; display: none; padding: 5px 0;
+}
+.ms-dropdown.open { display: block; }
+.ms-opt {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 14px; font-size: 13px; cursor: pointer;
+  transition: background .1s;
+}
+.ms-opt:hover { background: #f0f4f8; }
+.ms-opt input { accent-color: var(--green); width: 14px; height: 14px; cursor: pointer; }
+.ms-opt label { cursor: pointer; flex: 1; }
+
+/* Toggle group */
+.toggle-group {
+  display: flex; background: #f0f4f8;
+  border-radius: var(--radius-sm); padding: 3px; gap: 2px;
+}
+.toggle-btn {
+  padding: 6px 15px; border-radius: 6px; border: none;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  color: #777; background: transparent;
+  font-family: inherit;
+  transition: background .16s, color .16s, box-shadow .16s;
+}
+.toggle-btn.active {
+  background: var(--white); color: var(--ink);
+  box-shadow: 0 2px 6px rgba(0,0,0,.09);
+}
+
+/* Filter action buttons */
+.filter-actions { display: flex; gap: 8px; margin-left: auto; }
+.btn-apply {
+  padding: 8px 18px; border-radius: var(--radius-sm); border: none;
+  background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+  color: #fff; font-size: 13px; font-weight: 700;
+  letter-spacing: .07em; cursor: pointer; font-family: inherit;
+  box-shadow: 0 4px 12px rgba(85,139,47,.26);
+  transition: filter .17s, transform .1s;
+}
+.btn-apply:hover { filter: brightness(1.07); transform: translateY(-1px); }
+.btn-apply:active { transform: translateY(0); }
+.btn-refresh {
+  padding: 8px 14px; border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(0,0,0,.12); background: #fff;
+  color: var(--ink); font-size: 13px; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; gap: 5px;
+  font-family: inherit; transition: background .17s, border-color .17s;
+}
+.btn-refresh:hover { background: #f0f4f8; border-color: var(--green); }
+.btn-refresh svg { width: 13px; height: 13px; }
+.btn-refresh.spinning svg { animation: spin .7s linear infinite; }
+
+/* ───────────────────────────────────────────────
+   INFO ROW
+─────────────────────────────────────────────── */
+.info-row {
+  background: var(--white);
+  border-bottom: 1px solid rgba(0,0,0,.06);
+  padding: 9px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12.5px; color: #888;
+}
+.info-row strong { color: var(--ink); }
+.info-updated { font-size: 11px; color: #c0c0c0; font-style: italic; }
+
+/* ───────────────────────────────────────────────
+   MAIN WRAPPER
+─────────────────────────────────────────────── */
+.main { padding: 26px 28px 40px; max-width: 1600px; margin: 0 auto; }
+
+/* ───────────────────────────────────────────────
+   KPI GRID
+─────────────────────────────────────────────── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px; margin-bottom: 26px;
+}
+@media (max-width:1300px) { .kpi-grid { grid-template-columns: repeat(3,1fr); } }
+@media (max-width:700px)  { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+
+.kpi-card {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 20px 18px;
+  border-top: 3px solid transparent;
+  cursor: pointer; user-select: none;
+  position: relative; overflow: hidden;
+  transition: transform .2s, box-shadow .2s;
+}
+.kpi-card::after {
+  content: ''; position: absolute;
+  top: -16px; right: -16px;
+  width: 64px; height: 64px; border-radius: 50%;
+  opacity: .07;
+}
+.kpi-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-up); }
+.kpi-card.active { outline: 2px solid var(--kpi-color); outline-offset: 2px; }
+
+.kpi-card[data-k="total"]       { border-top-color: var(--blue-dark);  --kpi-color: var(--blue-dark); }
+.kpi-card[data-k="total"]::after{ background: var(--blue-dark); }
+.kpi-card[data-k="notStarted"]  { border-top-color: var(--orange);     --kpi-color: var(--orange); }
+.kpi-card[data-k="notStarted"]::after{ background: var(--orange); }
+.kpi-card[data-k="pending"]     { border-top-color: var(--amber);      --kpi-color: var(--amber); }
+.kpi-card[data-k="pending"]::after{ background: var(--amber); }
+.kpi-card[data-k="done"]        { border-top-color: var(--green-dark); --kpi-color: var(--green-dark); }
+.kpi-card[data-k="done"]::after { background: var(--green-dark); }
+.kpi-card[data-k="notApproved"] { border-top-color: var(--red);        --kpi-color: var(--red); }
+.kpi-card[data-k="notApproved"]::after{ background: var(--red); }
+.kpi-card[data-k="cancelled"]   { border-top-color: #9E9E9E;           --kpi-color: #9E9E9E; }
+.kpi-card[data-k="cancelled"]::after{ background: #9E9E9E; }
+
+.kpi-lbl {
+  font-size: 10px; font-weight: 700; letter-spacing: .18em;
+  text-transform: uppercase; color: #aaa; display: block; margin-bottom: 10px;
+}
+.kpi-icon { font-size: 22px; margin-bottom: 6px; display: block; }
+.kpi-num {
+  font-size: 40px; font-weight: 900;
+  letter-spacing: -.025em; color: var(--ink); line-height: 1;
+}
+.kpi-sub { font-size: 11.5px; color: #bbb; margin-top: 7px; line-height: 1.4; }
+.kpi-hint { font-size: 9.5px; color: #ddd; margin-top: 8px; font-style: italic; }
+
+/* ───────────────────────────────────────────────
+   SECTION CARDS
+─────────────────────────────────────────────── */
+.section-card {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow); margin-bottom: 22px; overflow: hidden;
+}
+.section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 22px; border-bottom: 1px solid rgba(0,0,0,.06);
+}
+.section-title {
+  font-size: 14px; font-weight: 700; color: var(--ink);
+  display: flex; align-items: center; gap: 8px;
+}
+.section-badge {
+  background: #f0f4f8; color: #888;
+  font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px; letter-spacing: .03em;
+}
+
+/* ───────────────────────────────────────────────
+   DATA TABLE
+─────────────────────────────────────────────── */
+.tbl-scroll { overflow-x: auto; }
+.data-tbl {
+  width: 100%; border-collapse: collapse; font-size: 13.5px;
+}
+.data-tbl thead th {
+  background: #f8f9fb; padding: 10px 13px; text-align: left;
+  font-size: 10px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: #999; white-space: nowrap;
+  border-bottom: 2px solid rgba(0,0,0,.08);
+}
+.data-tbl thead th.ctr { text-align: center; }
+.data-tbl thead th.grp-pending {
+  background: rgba(255,193,7,.08); color: #c17f00;
+}
+.data-tbl tbody tr {
+  border-bottom: 1px solid rgba(0,0,0,.05);
+  transition: background .1s;
+}
+.data-tbl tbody tr:hover { background: #f4f8ff; }
+.data-tbl td { padding: 11px 13px; }
+.data-tbl td.ctr { text-align: center; }
+.data-tbl tfoot td {
+  padding: 11px 13px; font-weight: 700;
+  background: #f8f9fb; border-top: 2px solid rgba(0,0,0,.08);
+}
+.data-tbl tfoot td.ctr { text-align: center; }
+
+.emp-link {
+  color: var(--blue-dark); font-weight: 600; cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(21,101,192,.28);
+  padding-bottom: 1px;
+  transition: color .15s, border-color .15s;
+}
+.emp-link:hover { color: var(--blue); border-color: var(--blue); }
+
+/* Status chips */
+.chip {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; letter-spacing: .03em; white-space: nowrap;
+}
+.chip-done        { background: #E8F5E9; color: #2E7D32; }
+.chip-approved    { background: #E8F5E9; color: #1B5E20; }
+.chip-not-approved{ background: #FFEBEE; color: #C62828; }
+.chip-not-started { background: #FFF3E0; color: #E65100; }
+.chip-initiated   { background: #E3F2FD; color: #1565C0; }
+.chip-follow-up   { background: #FFF8E1; color: #F57F17; }
+.chip-need-help   { background: #FFEBEE; color: #B71C1C; }
+.chip-cancelled   { background: #F5F5F5; color: #757575; }
+.chip-transferred { background: #F3E5F5; color: #6A1B9A; }
+
+/* Aging heat colours */
+.age-0 { color:#2E7D32;font-weight:700; }
+.age-1 { color:#43A047;font-weight:600; }
+.age-2 { color:#7CB342;font-weight:600; }
+.age-3 { color:#F9A825;font-weight:700; }
+.age-4 { color:#F57F17;font-weight:700; }
+.age-5 { color:#E65100;font-weight:800; }
+.age-6 { color:#B71C1C;font-weight:800; }
+.age-7 { color:#7B0000;font-weight:900; }
+
+/* ───────────────────────────────────────────────
+   CHARTS GRID
+─────────────────────────────────────────────── */
+.charts-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 22px; margin-bottom: 22px;
+}
+@media (max-width:960px) { .charts-grid { grid-template-columns: 1fr; } }
+
+.chart-card {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 22px;
+}
+.chart-title {
+  font-size: 14px; font-weight: 700; color: var(--ink);
+  margin-bottom: 18px; display: flex; align-items: center; gap: 7px;
+}
+.chart-body-wrap {
+  display: flex; align-items: center; gap: 24px;
+}
+.chart-canvas-box {
+  position: relative; width: 175px; height: 175px; flex-shrink: 0;
+}
+.chart-legend { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+.leg-item { display: flex; align-items: center; gap: 9px; }
+.leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.leg-lbl { font-size: 12.5px; color: #555; flex: 1; }
+.leg-val { font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.leg-pct { font-size: 10.5px; color: #bbb; margin-left: 2px; }
+
+/* ───────────────────────────────────────────────
+   DRILL-DOWN PANEL
+─────────────────────────────────────────────── */
+.drill-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.42);
+  z-index: 400; opacity: 0; pointer-events: none;
+  transition: opacity .24s;
+}
+.drill-overlay.open { opacity: 1; pointer-events: all; }
+
+.drill-panel {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: min(700px, 94vw);
+  background: var(--white);
+  z-index: 401; transform: translateX(100%);
+  transition: transform .28s cubic-bezier(.4,0,.2,1);
+  display: flex; flex-direction: column;
+  box-shadow: -6px 0 40px rgba(0,0,0,.16);
+}
+.drill-panel.open { transform: translateX(0); }
+
+.drill-hd {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 20px 22px; border-bottom: 1px solid rgba(0,0,0,.08); flex-shrink: 0;
+}
+.drill-title { font-size: 18px; font-weight: 700; color: var(--ink); }
+.drill-sub { font-size: 12.5px; color: #888; margin-top: 4px; }
+.drill-close {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: #f0f4f8; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: #777; flex-shrink: 0;
+  transition: background .14s;
+}
+.drill-close:hover { background: #e4eaf0; color: var(--ink); }
+.drill-mini-stats {
+  display: flex; gap: 0; flex-shrink: 0;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+}
+.dms {
+  flex: 1; padding: 12px 16px; text-align: center;
+  border-right: 1px solid rgba(0,0,0,.06);
+}
+.dms:last-child { border-right: none; }
+.dms-num { font-size: 22px; font-weight: 800; color: var(--ink); }
+.dms-lbl { font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #aaa; margin-top: 2px; }
+.drill-body-scroll { flex: 1; overflow-y: auto; padding: 16px 22px; }
+.drill-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.drill-tbl thead th {
+  padding: 8px 9px; background: #f8f9fb;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .13em;
+  text-transform: uppercase; color: #999;
+  border-bottom: 2px solid rgba(0,0,0,.08); white-space: nowrap; text-align: left;
+}
+.drill-tbl tbody tr { border-bottom: 1px solid rgba(0,0,0,.05); }
+.drill-tbl tbody tr:hover { background: #f4f8ff; }
+.drill-tbl td { padding: 9px 9px; vertical-align: top; }
+.drill-empty { text-align: center; padding: 44px; color: #ccc; font-size: 15px; }
+
+/* ───────────────────────────────────────────────
+   FOOTER
+─────────────────────────────────────────────── */
+.dash-footer {
+  background: var(--ink); color: rgba(255,255,255,.52);
+  text-align: center; padding: 18px 28px;
+  font-size: 12.5px; line-height: 1.85;
+  border-top: 3px solid rgba(255,255,255,.05);
+}
+.dash-footer a { color: rgba(255,255,255,.75); text-decoration: none; transition: color .15s; }
+.dash-footer a:hover { color: #fff; }
+.dash-footer .altus-name { color: rgba(255,255,255,.92); font-weight: 700; }
+
+/* ───────────────────────────────────────────────
+   SCROLLBAR
+─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f0f4f8; }
+::-webkit-scrollbar-thumb { background: #c5d0de; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ══ LOADING OVERLAY ══ -->
+<div id="loadingOverlay">
+  <div class="ld-spinner"></div>
+  <div class="ld-text">Loading dashboard…</div>
+</div>
+
+<!-- ══ HEADER ══ -->
+<header class="dash-header">
+  <div class="header-inner">
+    <div class="header-left">
+      <img src="aatech_logo.png" alt="Anant Avinya Technologies" class="header-logo"
+           onerror="this.style.display='none'"/>
+      <div class="header-titles">
+        <div class="header-company">Anant Avinya Technologies Ecosystem</div>
+        <div class="header-sub">By Altus Corp · Work Dashboard</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="header-live">
+        <div class="live-dot"></div>
+        <span>Live</span>
+      </div>
+      <img src="altus_logo.png" alt="Altus Corp" class="header-altus"
+           onerror="this.style.display='none'"/>
+    </div>
+  </div>
+  <div class="header-underline"></div>
+</header>
+
+<!-- ══ NAV BAR ══ -->
+<nav class="nav-bar">
+  <a class="nav-pill back-btn" href="#" onclick="goToForm(event)">← Back to Form</a>
+  <div class="nav-sep"></div>
+  <a class="nav-pill sheet-btn" href="https://docs.google.com/spreadsheets/d/14OyMMK3XKGKC-1XGW7DkC2fLeO5NYz2RtDak4u0LKQU/edit" target="_blank" rel="noopener">📊 Work Management Sheet</a>
+  <div class="nav-sep"></div>
+  <div id="dynNav" style="display:flex;gap:8px;"></div>
+  <button class="nav-pill signout" id="dashSignOutBtn" type="button" title="Sign out">Sign out</button>
+</nav>
+
+<!-- ══ FILTER BAR ══ -->
+<div class="filter-bar">
+  <span class="filter-label">Filters</span>
+
+  <input class="filter-input" type="date" id="startDate" title="From date"/>
+  <span class="filter-arrow">→</span>
+  <input class="filter-input" type="date" id="endDate" title="To date"/>
+
+  <div class="ms-wrap">
+    <button class="ms-trigger" id="msTrigger" onclick="toggleMS()">All Employees</button>
+    <div class="ms-dropdown" id="msDropdown">
+      <div class="ms-opt">
+        <input type="checkbox" id="chkAll" checked onchange="toggleAll(this)"/>
+        <label for="chkAll" style="font-weight:700;">Select All</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="toggle-group">
+    <button class="toggle-btn active" id="btnDoer"      onclick="setMode('doer')">Doer View</button>
+    <button class="toggle-btn"        id="btnInitiator" onclick="setMode('initiator')">Initiator View</button>
+  </div>
+
+  <div class="filter-actions">
+    <button class="btn-apply"   onclick="applyFilters()">Apply Filter →</button>
+    <button class="btn-refresh" id="btnRefresh" onclick="refreshData()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"
+           stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/>
+        <path d="M20.49 15A9 9 0 1 1 5.64 5.64L1 10"/>
+      </svg>
+      Refresh
+    </button>
+  </div>
+</div>
+
+<!-- ══ INFO ROW ══ -->
+<div class="info-row">
+  <div id="infoText">Loading data…</div>
+  <div class="info-updated" id="infoUpdated"></div>
+</div>
+
+<!-- ══ MAIN ══ -->
+<main class="main">
+
+  <!-- KPI CARDS -->
+  <div class="kpi-grid">
+    <div class="kpi-card" data-k="total" onclick="kpiDrill('total')">
+      <span class="kpi-lbl" id="lbl-total">Total Assigned</span>
+      <span class="kpi-icon">📋</span>
+      <div class="kpi-num" id="kn-total">–</div>
+      <div class="kpi-sub" id="sub-total">All tasks</div>
+      <div class="kpi-hint">Click to view all</div>
+    </div>
+    <div class="kpi-card" data-k="notStarted" onclick="kpiDrill('notStarted')">
+      <span class="kpi-lbl">Not Started</span>
+      <span class="kpi-icon">🔲</span>
+      <div class="kpi-num" id="kn-notStarted">–</div>
+      <div class="kpi-sub">Awaiting pickup</div>
+      <div class="kpi-hint">Click to view all</div>
+    </div>
+    <div class="kpi-card" data-k="pending" onclick="kpiDrill('pending')">
+      <span class="kpi-lbl">In Progress</span>
+      <span class="kpi-icon">🔄</span>
+      <div class="kpi-num" id="kn-pending">–</div>
+      <div class="kpi-sub">Initiated · Follow Up · Need Help</div>
+      <div class="kpi-hint">Click to view all</div>
+    </div>
+    <div class="kpi-card" data-k="done" onclick="kpiDrill('done')">
+      <span class="kpi-lbl">Done + Approved</span>
+      <span class="kpi-icon">✅</span>
+      <div class="kpi-num" id="kn-done">–</div>
+      <div class="kpi-sub">Completed tasks</div>
+      <div class="kpi-hint">Click to view all</div>
+    </div>
+    <div class="kpi-card" data-k="notApproved" onclick="kpiDrill('notApproved')">
+      <span class="kpi-lbl">Not Approved</span>
+      <span class="kpi-icon">⛔</span>
+      <div class="kpi-num" id="kn-notApproved">–</div>
+      <div class="kpi-sub">Sent back</div>
+      <div class="kpi-hint">Click to view all</div>
+    </div>
+    <div class="kpi-card" data-k="cancelled" onclick="kpiDrill('cancelled')">
+      <span class="kpi-lbl">Cancelled</span>
+      <span class="kpi-icon">❌</span>
+      <div class="kpi-num" id="kn-cancelled">–</div>
+      <div class="kpi-sub">Closed without completion</div>
+      <div class="kpi-hint">Click to view all</div>
+    </div>
+  </div>
+
+  <!-- STATUS TABLE -->
+  <div class="section-card">
+    <div class="section-head">
+      <div class="section-title">📊 <span id="statusTableTitle">Task Status by Doer</span></div>
+      <span class="section-badge" id="statusBadge">0 tasks</span>
+    </div>
+    <div class="tbl-scroll">
+      <table class="data-tbl" id="statusTable">
+        <thead id="sTHead"></thead>
+        <tbody id="sTBody"></tbody>
+        <tfoot id="sTFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 1 -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">🍩 Status Distribution</div>
+      <div class="chart-body-wrap">
+        <div class="chart-canvas-box"><canvas id="statusChart"></canvas></div>
+        <div class="chart-legend" id="statusLegend"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">⚡ Priority Breakdown</div>
+      <div class="chart-body-wrap">
+        <div class="chart-canvas-box"><canvas id="priorityChart"></canvas></div>
+        <div class="chart-legend" id="priorityLegend"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AGING TABLE -->
+  <div class="section-card">
+    <div class="section-head">
+      <div class="section-title">⏱️ Pending Tasks – Aging by Employee</div>
+      <span class="section-badge" id="agingBadge">0 pending</span>
+    </div>
+    <div class="tbl-scroll">
+      <table class="data-tbl" id="agingTable">
+        <thead>
+          <tr>
+            <th style="min-width:150px;">Employee</th>
+            <th class="ctr age-0">0–3d</th>
+            <th class="ctr age-1">4–7d</th>
+            <th class="ctr age-2">8–14d</th>
+            <th class="ctr age-3">15–20d</th>
+            <th class="ctr age-4">21–30d</th>
+            <th class="ctr age-5">31–45d</th>
+            <th class="ctr age-6">46–60d</th>
+            <th class="ctr age-7">60+d</th>
+            <th class="ctr" style="color:var(--ink);font-weight:800;">Total</th>
+          </tr>
+        </thead>
+        <tbody id="agingTBody"></tbody>
+        <tfoot id="agingTFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 2 -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">📅 Aging Distribution (Pending)</div>
+      <div class="chart-body-wrap">
+        <div class="chart-canvas-box"><canvas id="agingChart"></canvas></div>
+        <div class="chart-legend" id="agingLegend"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🏢 Top Clients by Task Volume</div>
+      <div class="chart-body-wrap">
+        <div class="chart-canvas-box"><canvas id="clientChart"></canvas></div>
+        <div class="chart-legend" id="clientLegend"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══ FOOTER ══ -->
+<footer class="dash-footer">
+  <div>Powered By <span class="altus-name">Altus Corp</span> &nbsp;|&nbsp;
+    <a href="https://www.altuscorp.in" target="_blank" rel="noopener">www.altuscorp.in</a>
+    &nbsp;|&nbsp; <a href="tel:+918097010410">+91 80970 10410</a>
+  </div>
+  <div>&copy; Manan Vasa 2025&ndash;2035 All Rights Reserved</div>
+</footer>
+
+<!-- ══ DRILL-DOWN PANEL ══ -->
+<div class="drill-overlay" id="drillOverlay" onclick="closeDrill()"></div>
+<div class="drill-panel" id="drillPanel">
+  <div class="drill-hd">
+    <div>
+      <div class="drill-title" id="drillTitle">Task Details</div>
+      <div class="drill-sub"   id="drillSub"></div>
+    </div>
+    <button class="drill-close" onclick="closeDrill()">✕</button>
+  </div>
+  <div class="drill-mini-stats" id="drillMiniStats"></div>
+  <div class="drill-body-scroll">
+    <table class="drill-tbl">
+      <thead>
+        <tr>
+          <th>#</th><th>Subject</th><th>Task</th><th>Doer</th>
+          <th>Initiator</th><th>Client</th><th>Status</th>
+          <th>Priority</th><th>Due Date</th>
+        </tr>
+      </thead>
+      <tbody id="drillTBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════ -->
+<script>
+/* ── CONSTANTS ──────────────────────────────── */
+const PENDING_ST  = ['Initiated','Follow Up 1','Follow Up 2','Follow Up 3','Need Help','Not Started'];
+const IN_PROG_ST  = ['Initiated','Follow Up 1','Follow Up 2','Follow Up 3','Need Help'];
+const DONE_ST     = ['Done','Approved'];
+
+const STATUS_COLORS = {
+  'Not Started'  : '#F57C00',
+  'Initiated'    : '#1565C0',
+  'Follow Up 1'  : '#FFA000',
+  'Follow Up 2'  : '#F57F17',
+  'Follow Up 3'  : '#E65100',
+  'Need Help'    : '#C62828',
+  'Done'         : '#43A047',
+  'Approved'     : '#2E7D32',
+  'Not Approved' : '#CC2229',
+  'Cancelled'    : '#9E9E9E',
+  'Transferred'  : '#7B1FA2',
+};
+const STATUS_CHIP_CLASS = {
+  'Done'         : 'chip-done',
+  'Approved'     : 'chip-approved',
+  'Not Approved' : 'chip-not-approved',
+  'Not Started'  : 'chip-not-started',
+  'Initiated'    : 'chip-initiated',
+  'Follow Up 1'  : 'chip-follow-up',
+  'Follow Up 2'  : 'chip-follow-up',
+  'Follow Up 3'  : 'chip-follow-up',
+  'Need Help'    : 'chip-need-help',
+  'Cancelled'    : 'chip-cancelled',
+  'Transferred'  : 'chip-transferred',
+};
+const PRIORITY_COLORS = {
+  'Important, Urgent'         : '#CC2229',
+  'Important, Not Urgent'     : '#F57C00',
+  'Not Important, Urgent'     : '#FFC107',
+  'Not Important, Not Urgent' : '#7CB342',
+};
+const PRIORITY_SHORT = {
+  'Important, Urgent'         : '🔴 Important + Urgent',
+  'Important, Not Urgent'     : '🟠 Important, Not Urgent',
+  'Not Important, Urgent'     : '🟡 Not Imp, Urgent',
+  'Not Important, Not Urgent' : '🟢 Low Priority',
+};
+const AGE_BUCKETS = [
+  {label:'0–3d',  min:0,  max:3},
+  {label:'4–7d',  min:4,  max:7},
+  {label:'8–14d', min:8,  max:14},
+  {label:'15–20d',min:15, max:20},
+  {label:'21–30d',min:21, max:30},
+  {label:'31–45d',min:31, max:45},
+  {label:'46–60d',min:46, max:60},
+  {label:'60+d',  min:61, max:Infinity},
+];
+const AGE_COLORS = ['#66BB6A','#9CCC65','#D4E157','#FFF176','#FFB74D','#FF7043','#EF5350','#B71C1C'];
+const CLIENT_COLORS = [
+  '#1565C0','#0D47A1','#1976D2','#2196F3','#42A5F5',
+  '#558B2F','#7CB342','#9CCC65','#E57373','#FF7043'
+];
+
+/* ── STATE ──────────────────────────────────── */
+let RAW_DATA   = [];
+let EMPLOYEES  = [];
+let activeMode = 'doer';
+let filters    = {start:'',end:'',employees:[]};
+let _genAt     = '';
+
+let chartStatus=null, chartPriority=null, chartAging=null, chartClient=null;
+
+/* ── NAVIGATION ─────────────────────────────── */
+function goToForm(e) {
+  if (e) e.preventDefault();
+  window.location.href = 'form.html';
+}
+
+function wireSignOut() {
+  var btn = document.getElementById('dashSignOutBtn');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    btn.disabled = true;
+    window.Auth.signOut().finally(function () {
+      window.location.replace('login/index.html');
+    });
+  });
+}
+
+/* ── MULTISELECT ────────────────────────────── */
+let msIsOpen = false;
+function toggleMS() {
+  msIsOpen = !msIsOpen;
+  document.getElementById('msDropdown').classList.toggle('open', msIsOpen);
+  document.getElementById('msTrigger').classList.toggle('open', msIsOpen);
+}
+document.addEventListener('click', function(e) {
+  const wrap = document.querySelector('.ms-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    msIsOpen = false;
+    document.getElementById('msDropdown').classList.remove('open');
+    document.getElementById('msTrigger').classList.remove('open');
+  }
+});
+function toggleAll(chk) {
+  document.querySelectorAll('.emp-chk').forEach(c => c.checked = chk.checked);
+  updateMSTrigger();
+}
+function updateMSTrigger() {
+  const all = [...document.querySelectorAll('.emp-chk')];
+  const sel = all.filter(c => c.checked);
+  const t = document.getElementById('msTrigger');
+  if (!sel.length)           t.textContent = 'None selected';
+  else if (sel.length === all.length) t.textContent = 'All Employees';
+  else if (sel.length === 1) t.textContent = sel[0].value;
+  else                       t.textContent = sel.length + ' employees';
+  document.getElementById('chkAll').checked = (sel.length === all.length);
+}
+function buildEmpDropdown() {
+  const dd     = document.getElementById('msDropdown');
+  const allRow = dd.firstElementChild;
+  dd.innerHTML = '';
+  dd.appendChild(allRow);
+  EMPLOYEES.forEach(emp => {
+    const div = document.createElement('div');
+    div.className = 'ms-opt';
+    div.innerHTML = `<input type="checkbox" value="${emp}" class="emp-chk" checked
+      onchange="updateMSTrigger()"/> <label>${emp}</label>`;
+    dd.appendChild(div);
+  });
+  updateMSTrigger();
+}
+function getSelEmps() {
+  return [...document.querySelectorAll('.emp-chk')].filter(c=>c.checked).map(c=>c.value);
+}
+
+/* ── MODE TOGGLE ────────────────────────────── */
+function setMode(m) {
+  activeMode = m;
+  document.getElementById('btnDoer').classList.toggle('active', m==='doer');
+  document.getElementById('btnInitiator').classList.toggle('active', m==='initiator');
+}
+
+/* ── FILTERS ────────────────────────────────── */
+function applyFilters() {
+  const sel = getSelEmps();
+  filters = {
+    start:     document.getElementById('startDate').value,
+    end:       document.getElementById('endDate').value,
+    employees: sel.length===EMPLOYEES.length ? [] : sel,
+  };
+  render();
+}
+
+function getFiltered() {
+  const {start,end,employees} = filters;
+  const nf = activeMode==='doer' ? 'doer' : 'initiator';
+  return RAW_DATA.filter(r => {
+    if (employees.length && !employees.includes(r[nf])) return false;
+    const ts = r.timestamp || '';
+    if (start && ts < start) return false;
+    if (end   && ts > end)   return false;
+    return true;
+  });
+}
+
+/* ── NUMBER COUNTER ─────────────────────────── */
+function animateNum(el, target) {
+  const from = parseInt(el.textContent) || 0;
+  if (from === target) { el.textContent = target; return; }
+  const dur = 480, t0 = performance.now();
+  (function step(t) {
+    const p = Math.min((t-t0)/dur, 1);
+    el.textContent = Math.round(from + (target-from)*p);
+    if (p < 1) requestAnimationFrame(step);
+  })(t0);
+}
+
+/* ── KPI ────────────────────────────────────── */
+const KPI_STATUSES = {
+  total:       null,
+  notStarted:  ['Not Started'],
+  pending:     IN_PROG_ST,
+  done:        DONE_ST,
+  notApproved: ['Not Approved'],
+  cancelled:   ['Cancelled'],
+};
+const KPI_LABELS = {
+  total:       'All Tasks',
+  notStarted:  'Not Started',
+  pending:     'In Progress',
+  done:        'Done + Approved',
+  notApproved: 'Not Approved',
+  cancelled:   'Cancelled',
+};
+
+function renderKPI(data) {
+  const counts = {total:0,notStarted:0,pending:0,done:0,notApproved:0,cancelled:0};
+  data.forEach(r => {
+    counts.total++;
+    if (r.status==='Not Started')      counts.notStarted++;
+    if (IN_PROG_ST.includes(r.status)) counts.pending++;
+    if (DONE_ST.includes(r.status))    counts.done++;
+    if (r.status==='Not Approved')     counts.notApproved++;
+    if (r.status==='Cancelled')        counts.cancelled++;
+  });
+  Object.keys(counts).forEach(k => {
+    const el = document.getElementById('kn-'+k);
+    if (el) animateNum(el, counts[k]);
+  });
+  const isDoer = activeMode==='doer';
+  document.getElementById('lbl-total').textContent = isDoer ? 'Total Assigned' : 'Total Initiated';
+  document.getElementById('sub-total').textContent = isDoer ? 'All assigned tasks' : 'All initiated tasks';
+  document.getElementById('statusBadge').textContent = data.length + ' tasks';
+}
+
+function kpiDrill(key) {
+  const data = getFiltered();
+  const st   = KPI_STATUSES[key];
+  const rows = st ? data.filter(r=>st.includes(r.status)) : data;
+  openDrill(KPI_LABELS[key] || key, rows);
+  document.querySelectorAll('.kpi-card').forEach(c=>c.classList.remove('active'));
+  const card = document.querySelector(`.kpi-card[data-k="${key}"]`);
+  if (card) card.classList.add('active');
+}
+
+/* ── STATUS TABLE ───────────────────────────── */
+function renderStatusTable(data) {
+  const nf = activeMode==='doer' ? 'doer' : 'initiator';
+  const emps = [...new Set(data.map(r=>r[nf]).filter(Boolean))].sort();
+  document.getElementById('statusTableTitle').textContent =
+    'Task Status by ' + (activeMode==='doer' ? 'Doer' : 'Initiator');
+
+  const thead = document.getElementById('sTHead');
+  if (activeMode==='doer') {
+    thead.innerHTML=`<tr>
+      <th rowspan="2">Employee</th>
+      <th rowspan="2" class="ctr">Approved</th>
+      <th rowspan="2" class="ctr">Not Approved</th>
+      <th rowspan="2" class="ctr">Done</th>
+      <th rowspan="2" class="ctr">Transferred</th>
+      <th rowspan="2" class="ctr">Cancelled</th>
+      <th colspan="5" class="ctr grp-pending">In Progress</th>
+      <th rowspan="2" class="ctr" style="color:var(--ink);font-weight:800;">Total</th>
+    </tr><tr>
+      <th class="ctr grp-pending">Total</th>
+      <th class="ctr grp-pending">Not Started</th>
+      <th class="ctr grp-pending">Initiated</th>
+      <th class="ctr grp-pending">Follow Up</th>
+      <th class="ctr grp-pending">Need Help</th>
+    </tr>`;
+  } else {
+    thead.innerHTML=`<tr>
+      <th rowspan="2">Initiator</th>
+      <th rowspan="2" class="ctr" style="color:var(--ink);font-weight:800;">Initiated</th>
+      <th rowspan="2" class="ctr">Approved</th>
+      <th rowspan="2" class="ctr">Not Approved</th>
+      <th rowspan="2" class="ctr">Done</th>
+      <th rowspan="2" class="ctr">Cancelled</th>
+      <th rowspan="2" class="ctr">Transferred</th>
+      <th colspan="4" class="ctr grp-pending">Pending</th>
+    </tr><tr>
+      <th class="ctr grp-pending">Not Started</th>
+      <th class="ctr grp-pending">Initiated</th>
+      <th class="ctr grp-pending">Follow Up</th>
+      <th class="ctr grp-pending">Need Help</th>
+    </tr>`;
+  }
+
+  const T={approved:0,notApproved:0,done:0,cancelled:0,transferred:0,
+           notStarted:0,initiated:0,followUp:0,needHelp:0,grand:0};
+  const tbody = document.getElementById('sTBody');
+  tbody.innerHTML='';
+
+  emps.forEach(emp => {
+    const rows = data.filter(r=>r[nf]===emp);
+    const s = {
+      approved:    rows.filter(r=>r.status==='Approved').length,
+      notApproved: rows.filter(r=>r.status==='Not Approved').length,
+      done:        rows.filter(r=>r.status==='Done').length,
+      cancelled:   rows.filter(r=>r.status==='Cancelled').length,
+      transferred: rows.filter(r=>r.status==='Transferred').length,
+      notStarted:  rows.filter(r=>r.status==='Not Started').length,
+      initiated:   rows.filter(r=>r.status==='Initiated').length,
+      followUp:    rows.filter(r=>['Follow Up 1','Follow Up 2','Follow Up 3'].includes(r.status)).length,
+      needHelp:    rows.filter(r=>r.status==='Need Help').length,
+      grand:       rows.length,
+    };
+    s.pendTotal = s.notStarted + s.initiated + s.followUp + s.needHelp;
+    Object.keys(T).forEach(k=>{ if(k in s) T[k]+=s[k]; });
+
+    const tr = document.createElement('tr');
+    if (activeMode==='doer') {
+      tr.innerHTML=`
+        <td><span class="emp-link" onclick="empDrill('${emp}')">${emp}</span></td>
+        <td class="ctr">${s.approved}</td>
+        <td class="ctr">${s.notApproved}</td>
+        <td class="ctr">${s.done}</td>
+        <td class="ctr">${s.transferred}</td>
+        <td class="ctr">${s.cancelled}</td>
+        <td class="ctr"><strong>${s.pendTotal}</strong></td>
+        <td class="ctr">${s.notStarted}</td>
+        <td class="ctr">${s.initiated}</td>
+        <td class="ctr">${s.followUp}</td>
+        <td class="ctr">${s.needHelp}</td>
+        <td class="ctr"><strong>${s.grand}</strong></td>`;
+    } else {
+      tr.innerHTML=`
+        <td><span class="emp-link" onclick="empDrill('${emp}')">${emp}</span></td>
+        <td class="ctr"><strong>${s.grand}</strong></td>
+        <td class="ctr">${s.approved}</td>
+        <td class="ctr">${s.notApproved}</td>
+        <td class="ctr">${s.done}</td>
+        <td class="ctr">${s.cancelled}</td>
+        <td class="ctr">${s.transferred}</td>
+        <td class="ctr">${s.notStarted}</td>
+        <td class="ctr">${s.initiated}</td>
+        <td class="ctr">${s.followUp}</td>
+        <td class="ctr">${s.needHelp}</td>`;
+    }
+    tbody.appendChild(tr);
+  });
+
+  const tfoot = document.getElementById('sTFoot');
+  const pT = T.notStarted+T.initiated+T.followUp+T.needHelp;
+  if (activeMode==='doer') {
+    tfoot.innerHTML=`<tr>
+      <td><strong>Totals</strong></td>
+      <td class="ctr">${T.approved}</td><td class="ctr">${T.notApproved}</td>
+      <td class="ctr">${T.done}</td><td class="ctr">${T.transferred}</td>
+      <td class="ctr">${T.cancelled}</td><td class="ctr"><strong>${pT}</strong></td>
+      <td class="ctr">${T.notStarted}</td><td class="ctr">${T.initiated}</td>
+      <td class="ctr">${T.followUp}</td><td class="ctr">${T.needHelp}</td>
+      <td class="ctr"><strong>${T.grand}</strong></td>
+    </tr>`;
+  } else {
+    tfoot.innerHTML=`<tr>
+      <td><strong>Totals</strong></td>
+      <td class="ctr"><strong>${T.grand}</strong></td>
+      <td class="ctr">${T.approved}</td><td class="ctr">${T.notApproved}</td>
+      <td class="ctr">${T.done}</td><td class="ctr">${T.cancelled}</td>
+      <td class="ctr">${T.transferred}</td>
+      <td class="ctr">${T.notStarted}</td><td class="ctr">${T.initiated}</td>
+      <td class="ctr">${T.followUp}</td><td class="ctr">${T.needHelp}</td>
+    </tr>`;
+  }
+}
+
+/* ── DONUT CHART HELPER ─────────────────────── */
+function buildDonut(canvasId, labels, values, colors, legendId, existing) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if (existing) existing.destroy();
+  const total = values.reduce((a,b)=>a+b,0);
+  const inst = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets:[{data:values, backgroundColor:colors, borderWidth:2, borderColor:'#fff'}]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:true, cutout:'68%',
+      animation: { duration:600 },
+      plugins:{
+        legend:{ display:false },
+        tooltip:{
+          callbacks:{
+            label: ctx=>{
+              const pct = total>0 ? ((ctx.parsed/total)*100).toFixed(1) : 0;
+              return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  const legend = document.getElementById(legendId);
+  legend.innerHTML='';
+  labels.forEach((lbl,i)=>{
+    if(!values[i]) return;
+    const pct = total>0 ? Math.round((values[i]/total)*100) : 0;
+    const item = document.createElement('div');
+    item.className='leg-item';
+    item.innerHTML=`
+      <div class="leg-dot" style="background:${colors[i]}"></div>
+      <div class="leg-lbl">${lbl}</div>
+      <div class="leg-val">${values[i]}<span class="leg-pct">(${pct}%)</span></div>`;
+    legend.appendChild(item);
+  });
+  return inst;
+}
+
+function renderStatusChart(data) {
+  const counts={};
+  data.forEach(r=>{ counts[r.status]=(counts[r.status]||0)+1; });
+  const lbls=Object.keys(counts).filter(k=>counts[k]>0);
+  chartStatus=buildDonut('statusChart',lbls,lbls.map(l=>counts[l]),
+    lbls.map(l=>STATUS_COLORS[l]||'#90A4AE'),'statusLegend',chartStatus);
+}
+
+function renderPriorityChart(data) {
+  const counts={};
+  data.forEach(r=>{ if(r.priority){ counts[r.priority]=(counts[r.priority]||0)+1; } });
+  const lbls=Object.keys(counts).filter(k=>counts[k]>0);
+  const shortLbls=lbls.map(l=>PRIORITY_SHORT[l]||l);
+  chartPriority=buildDonut('priorityChart',shortLbls,lbls.map(l=>counts[l]),
+    lbls.map(l=>PRIORITY_COLORS[l]||'#90A4AE'),'priorityLegend',chartPriority);
+}
+
+/* ── AGING TABLE ─────────────────────────────── */
+function daysSince(dateStr) {
+  if (!dateStr) return 999;
+  const d = new Date(dateStr);
+  return isNaN(d) ? 999 : Math.floor((Date.now()-d.getTime())/86400000);
+}
+
+function renderAgingTable(data) {
+  const pending = data.filter(r=>PENDING_ST.includes(r.status));
+  document.getElementById('agingBadge').textContent = pending.length+' pending';
+  const nf = activeMode==='doer' ? 'doer' : 'initiator';
+  const emps = [...new Set(pending.map(r=>r[nf]).filter(Boolean))].sort();
+
+  const tbody  = document.getElementById('agingTBody');
+  const tfoot  = document.getElementById('agingTFoot');
+  tbody.innerHTML='';
+  const colTotals = new Array(AGE_BUCKETS.length).fill(0);
+  let grand=0;
+
+  emps.forEach(emp=>{
+    const rows = pending.filter(r=>r[nf]===emp);
+    const bc   = AGE_BUCKETS.map(b=>rows.filter(r=>{
+      const age = daysSince(r.dueDate||r.timestamp);
+      return age>=b.min && age<=b.max;
+    }).length);
+    grand += rows.length;
+    bc.forEach((c,i)=>colTotals[i]+=c);
+
+    const cells = bc.map((c,i)=>
+      `<td class="ctr ${c>0?'age-'+i:''}">${c||'–'}</td>`).join('');
+    const tr = document.createElement('tr');
+    tr.innerHTML=`<td><span class="emp-link" onclick="empDrill('${emp}')">${emp}</span></td>
+      ${cells}<td class="ctr"><strong>${rows.length}</strong></td>`;
+    tbody.appendChild(tr);
+  });
+
+  const fc = colTotals.map(c=>`<td class="ctr"><strong>${c||'–'}</strong></td>`).join('');
+  tfoot.innerHTML=`<tr><td><strong>Totals</strong></td>${fc}
+    <td class="ctr"><strong>${grand}</strong></td></tr>`;
+
+  chartAging=buildDonut('agingChart',AGE_BUCKETS.map(b=>b.label),colTotals,
+    AGE_COLORS,'agingLegend',chartAging);
+}
+
+function renderClientChart(data) {
+  const counts={};
+  data.forEach(r=>{ if(r.client){ counts[r.client]=(counts[r.client]||0)+1; } });
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const lbls=sorted.map(e=>e[0]);
+  const vals=sorted.map(e=>e[1]);
+  const colors=lbls.map((_,i)=>CLIENT_COLORS[i%CLIENT_COLORS.length]);
+  chartClient=buildDonut('clientChart',lbls,vals,colors,'clientLegend',chartClient);
+}
+
+/* ── INFO ROW ───────────────────────────────── */
+function updateInfoRow(data) {
+  const {start,end,employees}=filters;
+  const dStr = (start||end) ? `${start||'any'} → ${end||'any'}` : 'All dates';
+  const eStr = employees.length ? employees.join(', ') : 'All employees';
+  document.getElementById('infoText').innerHTML=
+    `<strong>${data.length}</strong> tasks · `+
+    `<strong>${activeMode==='doer'?'Doer':'Initiator'}</strong> view · `+
+    `${eStr} · ${dStr} · Source: <strong>Website Report</strong>`;
+  if (_genAt) {
+    const d=new Date(_genAt);
+    document.getElementById('infoUpdated').textContent=
+      'Updated '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  }
+}
+
+/* ── DRILL-DOWN ─────────────────────────────── */
+function openDrill(title, rows, sub) {
+  document.getElementById('drillTitle').textContent = title;
+  document.getElementById('drillSub').textContent   = sub || (rows.length+' tasks');
+  // mini stats
+  const done  = rows.filter(r=>DONE_ST.includes(r.status)).length;
+  const pend  = rows.filter(r=>IN_PROG_ST.includes(r.status)).length;
+  const help  = rows.filter(r=>r.status==='Need Help').length;
+  document.getElementById('drillMiniStats').innerHTML=`
+    <div class="dms"><div class="dms-num">${rows.length}</div><div class="dms-lbl">Total</div></div>
+    <div class="dms"><div class="dms-num" style="color:#2E7D32">${done}</div><div class="dms-lbl">Completed</div></div>
+    <div class="dms"><div class="dms-num" style="color:#F57C00">${pend}</div><div class="dms-lbl">In Progress</div></div>
+    <div class="dms"><div class="dms-num" style="color:#C62828">${help}</div><div class="dms-lbl">Need Help</div></div>`;
+  // rows
+  const tbody=document.getElementById('drillTBody');
+  tbody.innerHTML='';
+  if (!rows.length) {
+    tbody.innerHTML='<tr><td colspan="9" class="drill-empty">No tasks found.</td></tr>';
+  } else {
+    rows.forEach((r,i)=>{
+      const cc=STATUS_CHIP_CLASS[r.status]||'';
+      const pri=PRIORITY_SHORT[r.priority]||r.priority||'–';
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td>${i+1}</td>
+        <td>${r.subject||'–'}</td>
+        <td>${r.task||'–'}</td>
+        <td>${r.doer||'–'}</td>
+        <td>${r.initiator||'–'}</td>
+        <td>${r.client||'–'}</td>
+        <td><span class="chip ${cc}">${r.status||'–'}</span></td>
+        <td style="font-size:12px;">${pri}</td>
+        <td style="white-space:nowrap;">${r.dueDate||'–'}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+  document.getElementById('drillPanel').classList.add('open');
+  document.getElementById('drillOverlay').classList.add('open');
+}
+
+function closeDrill() {
+  document.getElementById('drillPanel').classList.remove('open');
+  document.getElementById('drillOverlay').classList.remove('open');
+  document.querySelectorAll('.kpi-card').forEach(c=>c.classList.remove('active'));
+}
+
+function empDrill(emp) {
+  const data = getFiltered();
+  const nf   = activeMode==='doer' ? 'doer' : 'initiator';
+  const rows = data.filter(r=>r[nf]===emp);
+  openDrill(emp, rows, activeMode==='doer'?'Assigned tasks':'Initiated tasks');
+}
+
+/* ── RENDER ALL ─────────────────────────────── */
+function render() {
+  const data = getFiltered();
+  renderKPI(data);
+  renderStatusTable(data);
+  renderStatusChart(data);
+  renderPriorityChart(data);
+  renderAgingTable(data);
+  renderClientChart(data);
+  updateInfoRow(data);
+}
+
+/* ── DYNAMIC NAV BUTTONS ─────────────────────── */
+function loadNavButtons() {
+  callApi('getNavButtons').then(function (btns) {
+    if (!btns || !btns.length) return;
+    const c = document.getElementById('dynNav');
+    btns.forEach(b => {
+      const a = document.createElement('a');
+      a.className = 'nav-pill';
+      a.textContent = b.name; a.href = b.link;
+      a.target = '_blank'; a.rel = 'noopener';
+      c.appendChild(a);
+    });
+  }).catch(function () { /* silently ignore */ });
+}
+
+/* ── DATA LOADING ───────────────────────────── */
+function parsePayload(payload) {
+  if (Array.isArray(payload)) return { rows: payload, employees: [], genAt: '' };
+  if (!payload)               return { rows: [],      employees: [], genAt: '' };
+  return {
+    rows:      payload.rows || payload.data || [],
+    employees: payload.employees || [],
+    genAt:     payload.generatedAt || '',
+  };
+}
+
+function showError(msg) {
+  document.getElementById('infoText').innerHTML=
+    '<span style="color:#C62828;font-weight:600;">⚠ '+msg+'</span>';
+  document.getElementById('loadingOverlay').style.display='none';
+}
+
+function fetchAndRender(isRefresh) {
+  const btn = document.getElementById('btnRefresh');
+  if (isRefresh) btn.classList.add('spinning');
+
+  callApi('getDashboardData')
+    .then(function (payload) {
+      try {
+        const { rows, employees, genAt } = parsePayload(payload);
+        RAW_DATA = rows; _genAt = genAt;
+        if (employees.length) EMPLOYEES = employees;
+        else EMPLOYEES = [...new Set(rows.map(r => r.doer).filter(Boolean))].sort();
+        buildEmpDropdown();
+        render();
+      } catch (e) { showError('Parse error: ' + e.message); }
+      document.getElementById('loadingOverlay').style.display = 'none';
+      btn.classList.remove('spinning');
+    })
+    .catch(function (err) {
+      showError(err && err.message ? err.message : 'Failed to load data from sheet');
+      btn.classList.remove('spinning');
+    });
+}
+
+function refreshData() { fetchAndRender(true); }
+
+/* ── MOCK DATA (dev/preview only) ───────────── */
+function _mockData() {
+  const names=['Shilpa Pawar','Poonam Mehta','Bhavika','Chirag Tawde','Jeevan Bharambhe'];
+  const inits=['Pravin Joshi','Manan Vasa','Prakash Kumavat'];
+  const statuses=['Not Started','Initiated','Follow Up 1','Follow Up 2','Need Help','Done','Approved','Not Approved','Cancelled','Transferred'];
+  const priorities=['Important, Urgent','Important, Not Urgent','Not Important, Urgent','Not Important, Not Urgent'];
+  const clients=['Client A','Client B','Altus Corp','XYZ Pvt Ltd','ABC Ltd'];
+  const rows=[];
+  for(let i=0;i<60;i++){
+    const d=new Date(Date.now()-Math.floor(Math.random()*90)*86400000);
+    const dd=new Date(d.getTime()+(Math.floor(Math.random()*30)-10)*86400000);
+    rows.push({
+      timestamp: d.toISOString().split('T')[0],
+      subject:   'Subject '+i,
+      client:    clients[i%clients.length],
+      initiator: inits[i%inits.length],
+      doer:      names[i%names.length],
+      task:      'Task description '+i,
+      priority:  priorities[i%priorities.length],
+      dueDate:   dd.toISOString().split('T')[0],
+      status:    statuses[i%statuses.length],
+    });
+  }
+  return rows;
+}
+
+/* ── INIT ───────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function() {
+  wireSignOut();
+  loadNavButtons();
+  fetchAndRender(false);
+  setInterval(function(){ fetchAndRender(true); }, 30000); // auto-refresh every 30s
+});
+</script>
+</body>
+</html>

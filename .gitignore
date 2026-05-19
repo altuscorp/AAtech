@@ -1,0 +1,23 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node tooling (in case added later)
+node_modules/
+dist/
+build/
+npm-debug.log*
+
+# Local-only secrets
+.env
+.env.*
+*.local
