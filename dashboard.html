@@ -1339,11 +1339,28 @@ function loadNavButtons() {
 }
 
 /* ── DATA LOADING ───────────────────────────── */
-function parsePayload(payload) {
-  if (Array.isArray(payload)) return { rows: payload, employees: [], genAt: '' };
-  if (!payload)               return { rows: [],      employees: [], genAt: '' };
+function normalizeRow(r) {
+  // Apps Script returns long field names (taskDoer, taskInitiator, clientName, taskStatus).
+  // Local seed + form submissions use short names. Coalesce so the table renders either.
   return {
-    rows:      payload.rows || payload.data || [],
+    timestamp: r.timestamp || '',
+    subject:   r.subject   || '',
+    client:    r.client    || r.clientName    || '',
+    initiator: r.initiator || r.taskInitiator || '',
+    doer:      r.doer      || r.taskDoer      || '',
+    task:      r.task      || '',
+    priority:  r.priority  || '',
+    dueDate:   r.dueDate   || '',
+    notes:     r.notes     || '',
+    status:    r.status    || r.taskStatus    || ''
+  };
+}
+
+function parsePayload(payload) {
+  if (Array.isArray(payload)) return { rows: payload.map(normalizeRow), employees: [], genAt: '' };
+  if (!payload)               return { rows: [],                         employees: [], genAt: '' };
+  return {
+    rows:      (payload.rows || payload.data || []).map(normalizeRow),
     employees: payload.employees || [],
     genAt:     payload.generatedAt || '',
   };

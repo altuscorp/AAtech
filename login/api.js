@@ -14,7 +14,7 @@
  *                                      nav buttons in localStorage.
  */
 
-window.AS_URL = ''; // paste your Apps Script /exec URL here to switch to backend mode
+window.AS_URL = 'https://script.google.com/macros/s/AKfycbz2RlqMejOjf_zPjjuGqwlUseaBBS2o7EWlqF1zdSn29aat3eRAt-MiWOknUpcGR1jt/exec'; // paste your Apps Script /exec URL here to switch to backend mode
 
 (function () {
   var LS_RESPONSES  = 'aatech.responses';
